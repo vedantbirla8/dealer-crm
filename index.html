@@ -375,23 +375,7 @@ const RSM_NAMES = ["Aaron Bolado", "Adam Snell", "Alan Campbell", "Andrew Elliot
 // KUBOTA DEALER VISIT CRM — simplified, role-based edition
 // ====================================================================
 
-// ----- Question / observation banks (unchanged from original tool) -----
-const PRE_VISIT_QS = [
-  "What were the key discussion points from the last visit?",
-  "What open action items need to be followed up on today?",
-  "What promotions or programs should be discussed with this dealer?",
-  "What is this dealer's current inventory situation?",
-  "What are this dealer's current goals vs. YTD performance?"
-];
-const DURING_QS = [
-  "How is the dealer performing against monthly and YTD sales goals?",
-  "How do you convince customers on the fence that Kubota is the brand to buy?",
-  "What type of customers do you see most often?",
-  "What Kubota equipment is most sold and most frequently serviced?",
-  "What type of advertising works best in your market?",
-  "What DBS system do you use and how does it benefit your dealership?",
-  "How is your dealership involved in the community?"
-];
+// ----- Observation banks (unchanged from original tool) -----
 const SALES_OBS = ["Inventory Levels", "Lead Follow-Up", "Competition Awareness", "Sales Bulletin Use", "Demo Availability"];
 const SERVICE_OBS = ["Work Order Flow", "Technician Skills", "Warranty Workflow", "Shop Layout", "Safety Compliance"];
 const PARTS_OBS = ["DBS Quality", "Fill Rate", "Backorders", "Stock Turns", "Counter Service"];
@@ -960,11 +944,11 @@ function wizardHtml() {
     <div class="wizard-panel ${wizardStep===2?'active':''}" id="wizStep2">
       <div class="card">
         <div class="card-title"><div class="card-title-left">📋 Pre-Visit Notes</div></div>
-        <div id="preVisitQs"></div>
+        <textarea class="obs-notes" id="preVisitNotes" style="min-height:110px" placeholder="Write anything you'd like to note before the visit..."></textarea>
       </div>
       <div class="card">
         <div class="card-title"><div class="card-title-left">🔍 During Visit — Discussion Notes</div></div>
-        <div id="duringQs"></div>
+        <textarea class="obs-notes" id="duringVisitNotes" style="min-height:110px" placeholder="Write anything you'd like to note during the visit..."></textarea>
         <div class="form-grid" style="margin-top:8px">
           <div class="form-group"><label>Competitor Activity</label><textarea id="competitorActivity" placeholder="Which competitors are active? Any new activity or lost deals?"></textarea></div>
           <div class="form-group"><label>Training Needs Identified</label><textarea id="trainingNeeds" placeholder="Sales, service, parts, software training needs discussed..."></textarea></div>
@@ -1055,7 +1039,6 @@ function wizardHtml() {
 // or anything typed into earlier steps would be lost.
 function renderWizardStep() {
   document.getElementById('wizardView').innerHTML = wizardHtml();
-  buildQuestionBlocks();
   buildObsBlocks();
   document.getElementById('recList').innerHTML = '';
   recommendations.forEach((v, idx) => addRecRow(idx, v));
@@ -1098,19 +1081,6 @@ function wizardNext() {
   if (wizardStep === 4) renderWizardActionsPreview();
 }
 function wizardBack() { wizardStep = Math.max(1, wizardStep - 1); setWizardStepDisplay(); }
-
-function buildQuestionBlocks() {
-  document.getElementById('preVisitQs').innerHTML = PRE_VISIT_QS.map((q,i) => `
-    <div class="question-item" style="background:#FAFAF8;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;padding-left:8px;border-left:3px solid var(--kubota-orange);">${q}</div>
-      <textarea class="obs-notes" id="pre_q${i}" style="min-height:56px"></textarea>
-    </div>`).join('');
-  document.getElementById('duringQs').innerHTML = DURING_QS.map((q,i) => `
-    <div class="question-item" style="background:#FAFAF8;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;padding-left:8px;border-left:3px solid var(--kubota-orange);">${q}</div>
-      <textarea class="obs-notes" id="dur_q${i}" style="min-height:56px"></textarea>
-    </div>`).join('');
-}
 
 function buildObsBlocks() {
   const build = (arr, prefix) => arr.map((item,i) => `
@@ -1498,8 +1468,8 @@ function updateOpenActionsCount() {
 // ====================================================================
 
 function collectFormData() {
-  const preAnswers = PRE_VISIT_QS.map((q,i) => ({ question: q, answer: (document.getElementById(`pre_q${i}`)||{}).value || '' }));
-  const durAnswers = DURING_QS.map((q,i) => ({ question: q, answer: (document.getElementById(`dur_q${i}`)||{}).value || '' }));
+  const preNotes = (document.getElementById('preVisitNotes')||{}).value || '';
+  const durNotes = (document.getElementById('duringVisitNotes')||{}).value || '';
   const salesObs = SALES_OBS.map((item,i) => ({ item, rating: getRating(`sales_star${i}`), notes: (document.getElementById(`sales_note${i}`)||{}).value || '' }));
   const serviceObs = SERVICE_OBS.map((item,i) => ({ item, rating: getRating(`service_star${i}`), notes: (document.getElementById(`service_note${i}`)||{}).value || '' }));
   const partsObs = PARTS_OBS.map((item,i) => ({ item, rating: getRating(`parts_star${i}`), notes: (document.getElementById(`parts_note${i}`)||{}).value || '' }));
@@ -1516,8 +1486,8 @@ function collectFormData() {
     visibleToDealer: document.getElementById('visibleToDealerToggle').checked,
     nextVisitDate: document.getElementById('nextVisitDate').value,
     nextVisitReason: document.getElementById('nextVisitReason').value,
-    preVisit: preAnswers,
-    during: durAnswers,
+    preVisit: preNotes,
+    during: durNotes,
     competitorActivity: document.getElementById('competitorActivity').value,
     trainingNeeds: document.getElementById('trainingNeeds').value,
     recommendations: recommendations.filter(r => r !== null && r !== ''),
@@ -1586,8 +1556,8 @@ function loadVisitIntoWizard(id) {
   document.getElementById('visibleToDealerToggle').checked = !!v.visibleToDealer;
   document.getElementById('nextVisitDate').value = v.nextVisitDate || '';
   document.getElementById('nextVisitReason').value = v.nextVisitReason || '';
-  (v.preVisit||[]).forEach((q,i) => { const el = document.getElementById(`pre_q${i}`); if (el) el.value = q.answer; });
-  (v.during||[]).forEach((q,i) => { const el = document.getElementById(`dur_q${i}`); if (el) el.value = q.answer; });
+  document.getElementById('preVisitNotes').value = (typeof v.preVisit === 'string') ? v.preVisit : ((v.preVisit||[]).map(q=>q.answer).filter(Boolean).join('\n\n'));
+  document.getElementById('duringVisitNotes').value = (typeof v.during === 'string') ? v.during : ((v.during||[]).map(q=>q.answer).filter(Boolean).join('\n\n'));
   document.getElementById('competitorActivity').value = v.competitorActivity || '';
   document.getElementById('trainingNeeds').value = v.trainingNeeds || '';
   ['sales','service','parts'].forEach(dept => {
